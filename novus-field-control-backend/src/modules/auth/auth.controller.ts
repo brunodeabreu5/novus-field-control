@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ThrottlerGuard, Throttle } from "@nestjs/throttler";
 import { Request } from "express";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { AuthService } from "./auth.service";
@@ -16,6 +17,8 @@ export class AuthController {
 
   @Post("login")
   @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   login(@Body() dto: LoginDto, @Req() request: Request) {
     return this.authService.login(dto, request);
   }

@@ -31,8 +31,8 @@ export const env = {
   databaseUrl: required("DATABASE_URL"),
   directUrl: process.env.DIRECT_URL || process.env.DATABASE_URL || "",
   jwt: {
-    accessSecret: required("JWT_ACCESS_SECRET", "change-me-control-access-secret"),
-    refreshSecret: required("JWT_REFRESH_SECRET", "change-me-control-refresh-secret"),
+    accessSecret: required("JWT_ACCESS_SECRET"),
+    refreshSecret: required("JWT_REFRESH_SECRET"),
     accessTtl: process.env.JWT_ACCESS_TTL || "8h",
     refreshTtl: process.env.JWT_REFRESH_TTL || "30d",
   },
