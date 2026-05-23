@@ -1,7 +1,7 @@
-﻿services:
+services:
   postgres:
     image: postgis/postgis:16-3.4
-    container_name: novus-field-control-postgres
+    container_name: novus-field-control-postgres-test
     restart: unless-stopped
     environment:
       POSTGRES_DB: novus_field_control
