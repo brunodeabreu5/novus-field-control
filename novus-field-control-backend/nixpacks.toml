@@ -1,0 +1,17 @@
+# Nixpacks — Novus Field Control Backend (NestJS + Prisma)
+
+[variables]
+NPM_CONFIG_PRODUCTION = "false"
+PORT = "4010"
+
+[phases.setup]
+aptPkgs = ["curl", "openssl", "ca-certificates"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run prisma:generate", "npm run build"]
+
+[start]
+cmd = "sh -c 'export NODE_ENV=production && npm run prisma:deploy && npm run prisma:seed && exec npm run start'"

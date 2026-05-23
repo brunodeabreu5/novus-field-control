@@ -1,0 +1,17 @@
+# Nixpacks — Novus Field Control Web (Vite + React)
+
+[variables]
+NPM_CONFIG_PRODUCTION = "false"
+PORT = "4173"
+
+[phases.setup]
+aptPkgs = ["curl"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "sh -c 'set -e; test -f dist/index.html && cd dist && exec npx serve -s . -l tcp://0.0.0.0:${PORT:-4173}'"

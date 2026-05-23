@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AdminRole {
+  owner
+  admin
+  support
+}
+
+enum TenantStatus {
+  active
+  inactive
+  suspended
+  provisioning
+}
+
+enum Currency {
+  PYG
+  BRL
+  USD
+}
+
+enum BillingPlan {
+  starter
+  growth
+  enterprise
+}
+
+enum BillingProfileStatus {
+  active
+  grace
+  suspended
+  canceled
+}
+
+enum BillingInvoiceStatus {
+  draft
+  issued
+  paid
+  overdue
+  voided
+}
+
+enum ProvisioningProjectStatus {
+  planned
+  active
+  blocked
+  completed
+}
+
+model ControlAdmin {
+  id           String           @id @default(uuid()) @db.Uuid
+  email        String           @unique
+  passwordHash String           @map("password_hash")
+  fullName     String?          @map("full_name")
+  role         AdminRole        @default(admin)
+  isActive     Boolean          @default(true) @map("is_active")
+  lastLoginAt  DateTime?        @map("last_login_at") @db.Timestamptz(6)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sessions     ControlSession[]
+
+  @@map("control_admins")
+}
+
+model ControlSession {
+  id           String       @id @default(uuid()) @db.Uuid
+  adminId      String       @map("admin_id") @db.Uuid
+  refreshToken String       @unique @map("refresh_token")
+  userAgent    String?      @map("user_agent")
+  ipAddress    String?      @map("ip_address")
+  expiresAt    DateTime     @map("expires_at") @db.Timestamptz(6)
+  revokedAt    DateTime?    @map("revoked_at") @db.Timestamptz(6)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  admin        ControlAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@map("control_sessions")
+}
+
+model Tenant {
+  id                   String                @id @default(uuid()) @db.Uuid
+  slug                 String                @unique
+  companyCode          String?               @unique @map("company_code")
+  displayName          String                @map("display_name")
+  status               TenantStatus          @default(provisioning)
+  baseDomain           String                @map("base_domain")
+  apiBaseUrl           String                @map("api_base_url")
+  wsBaseUrl            String                @map("ws_base_url")
+  webBaseUrl           String                @map("web_base_url")
+  assetsBaseUrl        String?               @map("assets_base_url")
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  billingProfile       TenantBillingProfile?
+  provisioningProjects ProvisioningProject[]
+  billingInvoices      BillingInvoice[]
+
+  @@index([status, displayName])
+  @@map("tenants")
+}
+
+model TenantBillingProfile {
+  id             String               @id @default(uuid()) @db.Uuid
+  tenantId       String               @unique @map("tenant_id") @db.Uuid
+  plan           BillingPlan          @default(starter)
+  currency       Currency             @default(PYG)
+  monthlyAmount  Float                @default(0) @map("monthly_amount")
+  status         BillingProfileStatus @default(active)
+  notes          String?
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant         Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoices       BillingInvoice[]
+
+  @@index([status, plan])
+  @@map("tenant_billing_profiles")
+}
+
+model BillingInvoice {
+  id               String                @id @default(uuid()) @db.Uuid
+  tenantId          String                @map("tenant_id") @db.Uuid
+  billingProfileId  String?               @map("billing_profile_id") @db.Uuid
+  number            String                @unique
+  amount            Float
+  currency          Currency
+  issueDate         DateTime              @map("issue_date") @db.Date
+  dueDate           DateTime              @map("due_date") @db.Date
+  status            BillingInvoiceStatus  @default(draft)
+  description       String?
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant            Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  billingProfile    TenantBillingProfile? @relation(fields: [billingProfileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([billingProfileId])
+  @@map("billing_invoices")
+}
+
+model ProvisioningProject {
+  id              String                    @id @default(uuid()) @db.Uuid
+  tenantId         String                    @map("tenant_id") @db.Uuid
+  name            String
+  description     String?
+  ownerName       String?                   @map("owner_name")
+  status          ProvisioningProjectStatus @default(planned)
+  startedAt       DateTime?                 @map("started_at") @db.Date
+  targetGoLiveAt  DateTime?                 @map("target_go_live_at") @db.Date
+  createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant          Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([status, name])
+  @@map("provisioning_projects")
+}
