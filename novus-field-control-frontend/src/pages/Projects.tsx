@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+﻿import { useId, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Plus } from 'lucide-react';
 import { createProvisioningProject, listProvisioningProjects, listTenants } from '@/lib/api';
@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 export default function Projects() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const titleId = useId();
+  const descriptionId = useId();
   const tenantsQuery = useQuery({ queryKey: ['project-tenants'], queryFn: () => listTenants({ status: 'all' }) });
   const [search, setSearch] = useState('');
   const [tenantFilter, setTenantFilter] = useState('all');
@@ -126,10 +128,10 @@ export default function Projects() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border" titleId={titleId} descriptionId={descriptionId}>
           <DialogHeader>
-            <DialogTitle>{t('projects.newDialog')}</DialogTitle>
-            <DialogDescription>{t('projects.subtitle')}</DialogDescription>
+            <DialogTitle id={titleId}>{t('projects.newDialog')}</DialogTitle>
+            <DialogDescription id={descriptionId}>{t('projects.subtitle')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Field label={t('common.tenant')}>

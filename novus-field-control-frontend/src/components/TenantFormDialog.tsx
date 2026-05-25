@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useId, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createTenant, deleteTenant, getTenant, updateTenant } from '@/lib/api';
@@ -55,6 +55,8 @@ interface TenantFormDialogProps {
 export function TenantFormDialog({ open, onOpenChange, tenantId, onSuccess, onDelete }: TenantFormDialogProps) {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const titleId = useId();
+  const descriptionId = useId();
   const isEdit = Boolean(tenantId);
   const [form, setForm] = useState<TenantPayload>(defaultTenant);
   const [error, setError] = useState<string | null>(null);
@@ -204,10 +206,10 @@ export function TenantFormDialog({ open, onOpenChange, tenantId, onSuccess, onDe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border sm:max-w-3xl">
+      <DialogContent className="bg-card border-border sm:max-w-3xl" titleId={titleId} descriptionId={descriptionId}>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{t('tenantForm.subtitle')}</DialogDescription>
+          <DialogTitle id={titleId}>{title}</DialogTitle>
+          <DialogDescription id={descriptionId}>{t('tenantForm.subtitle')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">

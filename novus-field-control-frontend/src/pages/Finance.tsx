@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useId, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createBillingInvoice, getTenantBilling, listBillingInvoices, listTenants, updateTenantBillingProfile } from '@/lib/api';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -23,6 +23,10 @@ export default function Finance() {
   const [tenantId, setTenantId] = useState<string>('');
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const invoiceTitleId = useId();
+  const invoiceDescriptionId = useId();
+  const profileTitleId = useId();
+  const profileDescriptionId = useId();
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -242,10 +246,10 @@ export default function Finance() {
       </Card>
 
       <Dialog open={invoiceOpen} onOpenChange={resetInvoiceDialog}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border" titleId={invoiceTitleId} descriptionId={invoiceDescriptionId}>
           <DialogHeader>
-            <DialogTitle>{t('finance.invoiceDialog')}</DialogTitle>
-            <DialogDescription>{t('finance.subtitle')}</DialogDescription>
+            <DialogTitle id={invoiceTitleId}>{t('finance.invoiceDialog')}</DialogTitle>
+            <DialogDescription id={invoiceDescriptionId}>{t('finance.subtitle')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Field label={t('finance.number')}><Input value={invoiceForm.number} onChange={(e) => { setInvoiceForm((prev) => ({ ...prev, number: e.target.value })); setInvoiceError(null); }} /></Field>
@@ -287,10 +291,10 @@ export default function Finance() {
       </Dialog>
 
       <Dialog open={profileOpen} onOpenChange={resetProfileDialog}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border" titleId={profileTitleId} descriptionId={profileDescriptionId}>
           <DialogHeader>
-            <DialogTitle>{t('finance.profileDialog')}</DialogTitle>
-            <DialogDescription>{t('finance.subtitle')}</DialogDescription>
+            <DialogTitle id={profileTitleId}>{t('finance.profileDialog')}</DialogTitle>
+            <DialogDescription id={profileDescriptionId}>{t('finance.subtitle')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
