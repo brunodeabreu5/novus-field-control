@@ -1,6 +1,5 @@
 ﻿import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { BillingPlan, BillingProfileStatus, Currency, Prisma, TenantStatus } from "@prisma/client";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateTenantDto } from "./dto/create-tenant.dto";
 import { UpdateTenantDto } from "./dto/update-tenant.dto";
@@ -127,7 +126,7 @@ export class TenantsService {
         where: { id },
       });
     } catch (error) {
-      if (error instanceof PrismaClientKnownRequestError && error.code === "P2003") {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
         throw new BadRequestException("Tenant cannot be deleted because it still has related records.");
       }
 
