@@ -86,4 +86,6 @@ UI: shadcn/ui (Radix primitives + Tailwind), `vaul` for drawers, `sonner` for to
 
 **Backend**: NestJS build → `dist/src/main.js` as entry point.
 
-**Web**: Vite build → `dist/` directory. Production uses `serve` to serve the static build. In Coolify, publish `dist/` as the static site. Build command: `npm ci && npm run build`. Set `VITE_CONTROL_API_URL` to the public backend URL.
+**Web**: Vite build → `dist/` directory. `npm run start` serves it locally with `serve`.
+
+**Deploy**: both packages have a `Dockerfile`; Coolify uses the Dockerfile build pack. Backend on port 4010 (the container runs `prisma migrate deploy` and the seed before starting — `SEED_ADMIN_PASSWORD` with 12+ chars is required). Frontend on port 80 via nginx, with `VITE_CONTROL_API_URL` passed as a build arg because Vite inlines it at build time.

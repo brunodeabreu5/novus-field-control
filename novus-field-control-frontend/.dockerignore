@@ -7,6 +7,5 @@ dist
 coverage
 *.log
 *.tsbuildinfo
-.nixpacks
 playwright-report
 test-results

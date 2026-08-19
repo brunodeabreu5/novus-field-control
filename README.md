@@ -96,6 +96,8 @@ PostgreSQL at `127.0.0.1:3441`, database `novus_field_control`.
 
 ## Deploy
 
-**Backend**: NestJS build outputs to `dist/src/main.js`. Use the `nixpacks.toml` for Coolify/Nixpacks deployment.
+Both packages ship a `Dockerfile`. In Coolify, set Build Pack to **Dockerfile** for each application.
 
-**Frontend**: Vite builds to `dist/`. Serve with `serve` or deploy as a static site. In Coolify, publish the `dist/` folder. Set `VITE_CONTROL_API_URL` to the public backend URL before building.
+**Backend** — Base Directory `novus-field-control-backend`, port **4010**. The container runs migrations and the seed before starting, so `SEED_ADMIN_PASSWORD` (12+ chars) must be set or the boot fails on purpose.
+
+**Frontend** — Base Directory `novus-field-control-frontend`, port **80** (nginx). `VITE_CONTROL_API_URL` must be set **before the build**: Vite inlines `VITE_*` variables into the bundle, so defining it only at runtime has no effect.
