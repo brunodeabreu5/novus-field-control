@@ -14,7 +14,6 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const email = (process.env.SEED_ADMIN_EMAIL || "admin@novusfield.com").trim().toLowerCase();
-  const password = process.env.SEED_ADMIN_PASSWORD || "admin123456";
   const fullName = process.env.SEED_ADMIN_NAME || "Platform Admin";
 
   const existing = await prisma.controlAdmin.findUnique({
@@ -25,6 +24,13 @@ async function main() {
   if (existing) {
     console.log(`Seed admin already exists: ${email}`);
     return;
+  }
+
+  const password = process.env.SEED_ADMIN_PASSWORD;
+  if (!password || password.length < 12) {
+    throw new Error(
+      "SEED_ADMIN_PASSWORD must be set to a strong value (at least 12 characters) to bootstrap the first admin.",
+    );
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
