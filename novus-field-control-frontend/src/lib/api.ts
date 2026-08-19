@@ -19,6 +19,23 @@ import type {
   TenantStatus,
 } from "@/types";
 
+// Requisicoes concorrentes que recebem 401 ao mesmo tempo precisam compartilhar
+// uma unica renovacao: o backend rotaciona o refresh token, entao a segunda
+// chamada usaria um token ja invalidado e derrubaria a sessao do usuario.
+let pendingRefresh: Promise<AuthResponse | null> | null = null;
+
+function refreshOnce(refreshToken: string): Promise<AuthResponse | null> {
+  if (!pendingRefresh) {
+    pendingRefresh = refreshSession(refreshToken)
+      .catch(() => null)
+      .finally(() => {
+        pendingRefresh = null;
+      });
+  }
+
+  return pendingRefresh;
+}
+
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const auth = readAuthState();
   const headers = new Headers(init.headers || {});
@@ -36,11 +53,21 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     headers,
   });
 
-  if (response.status === 401 && auth?.refreshToken && retry && path !== "/auth/refresh") {
-    const refreshed = await refreshSession(auth.refreshToken).catch(() => null);
-    if (refreshed) {
+  if (response.status === 401 && retry && path !== "/auth/refresh") {
+    const current = readAuthState();
+
+    // Outra requisicao ja renovou a sessao enquanto esta estava em voo.
+    if (current?.accessToken && current.accessToken !== auth?.accessToken) {
       return request<T>(path, init, false);
     }
+
+    if (current?.refreshToken) {
+      const refreshed = await refreshOnce(current.refreshToken);
+      if (refreshed) {
+        return request<T>(path, init, false);
+      }
+    }
+
     clearAuthState();
   }
 
