@@ -41,7 +41,7 @@ export default function Finance() {
     enabled: !!tenantId,
   });
 
-  const tenants = tenantsQuery.data?.items ?? [];
+  const tenants = useMemo(() => tenantsQuery.data?.items ?? [], [tenantsQuery.data]);
 
   useEffect(() => {
     if (!tenantId && tenants.length) {

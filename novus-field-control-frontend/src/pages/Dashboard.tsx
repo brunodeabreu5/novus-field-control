@@ -15,9 +15,12 @@ export default function Dashboard() {
   const projectsQuery = useQuery({ queryKey: ['dashboard', 'projects'], queryFn: () => listProvisioningProjects({ status: 'all' }) });
   const invoicesQuery = useQuery({ queryKey: ['dashboard', 'invoices'], queryFn: () => listBillingInvoices({ status: 'all' }) });
 
-  const tenants = tenantsQuery.data?.items ?? [];
-  const projects = projectsQuery.data?.items ?? [];
-  const invoices = invoicesQuery.data?.items ?? [];
+  // Memoizados para manter a referencia estavel entre renders: o fallback `[]`
+  // criava um array novo a cada render enquanto a query carrega, invalidando
+  // os useMemo abaixo sem necessidade.
+  const tenants = useMemo(() => tenantsQuery.data?.items ?? [], [tenantsQuery.data]);
+  const projects = useMemo(() => projectsQuery.data?.items ?? [], [projectsQuery.data]);
+  const invoices = useMemo(() => invoicesQuery.data?.items ?? [], [invoicesQuery.data]);
 
   const metrics = useMemo(() => {
     const activeTenants = tenants.filter((tenant) => tenant.status === 'active').length;
