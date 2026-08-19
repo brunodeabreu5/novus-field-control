@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Plus } from 'lucide-react';
 import { createProvisioningProject, listProvisioningProjects, listTenantOptions } from '@/lib/api';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { TablePagination } from '@/components/TablePagination';
 import type { ProvisioningProjectPayload, ProvisioningProjectStatus } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 export default function Projects() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const { canMutate } = useAuth();
   const titleId = useId();
   const descriptionId = useId();
   const tenantsQuery = useQuery({ queryKey: ['tenant-options'], queryFn: listTenantOptions });
@@ -70,9 +72,11 @@ export default function Projects() {
           <h1 className="text-3xl font-bold text-foreground">{t('projects.title')}</h1>
           <p className="text-muted-foreground mt-1">{t('projects.subtitle')}</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />{t('projects.new')}
-        </Button>
+        {canMutate ? (
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />{t('projects.new')}
+          </Button>
+        ) : null}
       </div>
 
       <Card className="bg-card border-border shadow-sm">

@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import { getTenant, getTenantBilling, listProvisioningProjects } from '@/lib/api';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { TenantFormDialog } from '@/components/TenantFormDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +20,7 @@ export default function TenantDetail() {
   const queryClient = useQueryClient();
   const { format } = useCurrency();
   const { t, language } = useTranslation();
+  const { canMutate } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
   const locale = getLanguageLocale(language);
 
@@ -72,9 +74,11 @@ export default function TenantDetail() {
               <span className="text-sm text-muted-foreground">{tenant.baseDomain}</span>
             </div>
           </div>
-          <Button variant="outline" onClick={() => setEditOpen(true)}>
-            <Pencil className="mr-2 h-4 w-4" />{t('tenantDetail.edit')}
-          </Button>
+          {canMutate ? (
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Pencil className="mr-2 h-4 w-4" />{t('tenantDetail.edit')}
+            </Button>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

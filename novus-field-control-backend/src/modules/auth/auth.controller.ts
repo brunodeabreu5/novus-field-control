@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { ThrottlerGuard, Throttle } from "@nestjs/throttler";
 import { Request } from "express";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { AnyRole } from "../../common/decorators/roles.decorator";
+import { Public } from "../../common/decorators/public.decorator";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshSessionDto } from "./dto/refresh-session.dto";
@@ -15,6 +17,7 @@ import { AuthenticatedUser } from "./interfaces/authenticated-user.interface";
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post("login")
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
@@ -23,6 +26,7 @@ export class AuthController {
     return this.authService.login(dto, request);
   }
 
+  @Public()
   @Post("refresh")
   @HttpCode(200)
   refresh(@Body() dto: RefreshSessionDto, @Req() request: Request) {
@@ -32,6 +36,7 @@ export class AuthController {
   @Post("logout")
   @HttpCode(200)
   @ApiBearerAuth()
+  @AnyRole()
   @UseGuards(JwtAuthGuard)
   logout(@CurrentUser() user: AuthenticatedUser, @Body() dto: LogoutDto) {
     return this.authService.logout(user, dto);
@@ -39,7 +44,6 @@ export class AuthController {
 
   @Get("me")
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.me(user.sub);
   }

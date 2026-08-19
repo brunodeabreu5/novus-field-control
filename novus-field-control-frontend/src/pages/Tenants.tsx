@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Eye, Pencil } from 'lucide-react';
 import { listTenants } from '@/lib/api';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { TenantFormDialog } from '@/components/TenantFormDialog';
 import { TablePagination } from '@/components/TablePagination';
 import type { TenantStatus } from '@/types';
@@ -17,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 export default function Tenants() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { canMutate } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TenantStatus | 'all'>('all');
   const [modalOpen, setModalOpen] = useState(false);
@@ -67,9 +69,11 @@ export default function Tenants() {
             <h1 className="text-3xl font-bold text-foreground">{t('tenants.title')}</h1>
             <p className="mt-1 text-muted-foreground">{t('tenants.subtitle')}</p>
           </div>
-          <Button onClick={openCreateModal}>
-            <Plus className="mr-2 h-4 w-4" />{t('tenants.new')}
-          </Button>
+          {canMutate ? (
+            <Button onClick={openCreateModal}>
+              <Plus className="mr-2 h-4 w-4" />{t('tenants.new')}
+            </Button>
+          ) : null}
         </div>
 
         <Card className="border-border bg-card shadow-sm">
@@ -132,7 +136,9 @@ export default function Tenants() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" onClick={() => navigate(`/tenants/${tenant.id}`)} aria-label={t('common.back')}><Eye className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => openEditModal(tenant.id)} aria-label={t('common.edit')}><Pencil className="h-4 w-4" /></Button>
+                        {canMutate ? (
+                          <Button variant="ghost" size="icon" onClick={() => openEditModal(tenant.id)} aria-label={t('common.edit')}><Pencil className="h-4 w-4" /></Button>
+                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>

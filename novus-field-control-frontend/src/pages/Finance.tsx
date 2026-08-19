@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createBillingInvoice, getTenantBilling, listBillingInvoices, listTenantOptions, updateTenantBillingProfile } from '@/lib/api';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { TablePagination } from '@/components/TablePagination';
 import { formatCurrencyValue, getLanguageLocale } from '@/lib/locale';
 import type { BillingInvoicePayload, BillingInvoiceStatus, BillingPlan, BillingProfileStatus, Currency } from '@/types';
@@ -18,6 +19,7 @@ export default function Finance() {
   const queryClient = useQueryClient();
   const { format } = useCurrency();
   const { t, language } = useTranslation();
+  const { canMutate } = useAuth();
   const locale = getLanguageLocale(language);
   const tenantsQuery = useQuery({ queryKey: ['tenant-options'], queryFn: listTenantOptions });
   const [statusFilter, setStatusFilter] = useState<BillingInvoiceStatus | 'all'>('all');
@@ -174,8 +176,12 @@ export default function Finance() {
           <p className="text-muted-foreground mt-1">{t('finance.subtitle')}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => resetProfileDialog(true)} disabled={!tenantId}>{t('finance.editProfile')}</Button>
-          <Button onClick={() => resetInvoiceDialog(true)} disabled={!tenantId}>{t('finance.newInvoice')}</Button>
+          {canMutate ? (
+            <>
+              <Button variant="outline" onClick={() => resetProfileDialog(true)} disabled={!tenantId}>{t('finance.editProfile')}</Button>
+              <Button onClick={() => resetInvoiceDialog(true)} disabled={!tenantId}>{t('finance.newInvoice')}</Button>
+            </>
+          ) : null}
         </div>
       </div>
 

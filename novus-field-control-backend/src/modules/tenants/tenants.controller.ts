@@ -1,17 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { Roles } from "../../common/decorators/roles.decorator";
-import { RolesGuard } from "../../common/guards/roles.guard";
 import { CreateTenantDto } from "./dto/create-tenant.dto";
 import { UpdateTenantDto } from "./dto/update-tenant.dto";
 import { ListTenantsQueryDto } from "./dto/list-tenants-query.dto";
 import { TenantsService } from "./tenants.service";
-import { AdminRole } from "@prisma/client";
 
 @ApiTags("tenants")
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller("tenants")
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
@@ -43,8 +38,6 @@ export class TenantsController {
   }
 
   @Delete(":id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(AdminRole.owner, AdminRole.admin)
   remove(@Param("id") id: string) {
     return this.tenantsService.remove(id);
   }

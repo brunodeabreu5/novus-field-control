@@ -8,6 +8,8 @@ interface AuthContextType {
   loading: boolean;
   user: AuthUser | null;
   adminName: string;
+  /** Espelha o RBAC do backend: apenas owner e admin alteram estado. */
+  canMutate: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -56,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       user,
       adminName: user?.fullName || user?.email || 'Administrador',
+      canMutate: user?.role === 'owner' || user?.role === 'admin',
       async login(email: string, password: string) {
         const response = await loginRequest(email, password);
         setUser(response.user);
