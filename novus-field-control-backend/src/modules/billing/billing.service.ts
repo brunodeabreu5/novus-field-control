@@ -131,13 +131,15 @@ export class BillingService {
       },
     });
 
+    // Somado em Decimal: acumular valores monetarios em float acumula erro de
+    // arredondamento a cada parcela. O interceptor converte para number na saida.
     const totalOutstanding = invoices
       .filter((invoice) => invoice.status === BillingInvoiceStatus.issued || invoice.status === BillingInvoiceStatus.overdue)
-      .reduce((sum, invoice) => sum + invoice.amount, 0);
+      .reduce((sum, invoice) => sum.plus(invoice.amount), new Prisma.Decimal(0));
 
     const totalPaid = invoices
       .filter((invoice) => invoice.status === BillingInvoiceStatus.paid)
-      .reduce((sum, invoice) => sum + invoice.amount, 0);
+      .reduce((sum, invoice) => sum.plus(invoice.amount), new Prisma.Decimal(0));
 
     return {
       tenant,

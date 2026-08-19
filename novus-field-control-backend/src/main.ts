@@ -3,6 +3,7 @@ import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { env } from "./config/env";
+import { DecimalSerializerInterceptor } from "./common/interceptors/decimal-serializer.interceptor";
 
 function isAllowedCorsOrigin(origin: string | undefined) {
   if (!origin) {
@@ -43,6 +44,7 @@ async function bootstrap() {
       forbidUnknownValues: false,
     }),
   );
+  app.useGlobalInterceptors(new DecimalSerializerInterceptor());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Novus Field Control API")

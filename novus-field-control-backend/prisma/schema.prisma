@@ -110,7 +110,7 @@ model TenantBillingProfile {
   tenantId       String               @unique @map("tenant_id") @db.Uuid
   plan           BillingPlan          @default(starter)
   currency       Currency             @default(PYG)
-  monthlyAmount  Float                @default(0) @map("monthly_amount")
+  monthlyAmount  Decimal              @default(0) @map("monthly_amount") @db.Decimal(14, 2)
   status         BillingProfileStatus @default(active)
   notes          String?
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -127,7 +127,7 @@ model BillingInvoice {
   tenantId          String                @map("tenant_id") @db.Uuid
   billingProfileId  String?               @map("billing_profile_id") @db.Uuid
   number            String                @unique
-  amount            Float
+  amount            Decimal               @db.Decimal(14, 2)
   currency          Currency
   issueDate         DateTime              @map("issue_date") @db.Date
   dueDate           DateTime              @map("due_date") @db.Date
