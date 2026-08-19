@@ -9,6 +9,7 @@ import { TenantsModule } from "./modules/tenants/tenants.module";
 import { TenantResolverModule } from "./modules/tenant-resolver/tenant-resolver.module";
 import { ProvisioningProjectsModule } from "./modules/provisioning-projects/provisioning-projects.module";
 import { BillingModule } from "./modules/billing/billing.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.module";
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { BillingModule } from "./modules/billing/billing.module";
     TenantResolverModule,
     ProvisioningProjectsModule,
     BillingModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CreateProvisioningProjectDto } from "./dto/create-provisioning-project.dto";
 import { ListProvisioningProjectsQueryDto } from "./dto/list-provisioning-projects-query.dto";
 import { UpdateProvisioningProjectDto } from "./dto/update-provisioning-project.dto";
+import { buildPageMeta, resolvePagination } from "../../common/dto/pagination-query.dto";
 
 @Injectable()
 export class ProvisioningProjectsService {
@@ -31,9 +32,13 @@ export class ProvisioningProjectsService {
       ];
     }
 
+    const { page, pageSize, skip, take } = resolvePagination(query);
+
     const [items, total, planned, active, blocked, completed] = await Promise.all([
       this.prisma.provisioningProject.findMany({
         where,
+        skip,
+        take,
         include: {
           tenant: {
             select: {
@@ -56,6 +61,7 @@ export class ProvisioningProjectsService {
     return {
       items,
       total,
+      ...buildPageMeta(page, pageSize, total),
       summary: {
         total,
         planned,

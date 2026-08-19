@@ -1,8 +1,9 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { BillingInvoiceStatus } from "@prisma/client";
 import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
 
-export class ListBillingInvoicesQueryDto {
+export class ListBillingInvoicesQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

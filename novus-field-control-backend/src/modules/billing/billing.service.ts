@@ -5,6 +5,7 @@ import { CreateBillingInvoiceDto } from "./dto/create-billing-invoice.dto";
 import { ListBillingInvoicesQueryDto } from "./dto/list-billing-invoices-query.dto";
 import { UpdateBillingInvoiceDto } from "./dto/update-billing-invoice.dto";
 import { UpdateTenantBillingProfileDto } from "./dto/update-tenant-billing-profile.dto";
+import { buildPageMeta, resolvePagination } from "../../common/dto/pagination-query.dto";
 
 @Injectable()
 export class BillingService {
@@ -31,9 +32,13 @@ export class BillingService {
       ];
     }
 
-    const [items, total, paid, issued, overdue, draft] = await Promise.all([
+    const { page, pageSize, skip, take } = resolvePagination(query);
+
+    const [items, total, paid, issued, overdue, draft, totalsRows] = await Promise.all([
       this.prisma.billingInvoice.findMany({
         where,
+        skip,
+        take,
         include: {
           tenant: {
             select: { id: true, slug: true, displayName: true, status: true },
@@ -46,17 +51,29 @@ export class BillingService {
       this.prisma.billingInvoice.count({ where: { ...where, status: BillingInvoiceStatus.issued } }),
       this.prisma.billingInvoice.count({ where: { ...where, status: BillingInvoiceStatus.overdue } }),
       this.prisma.billingInvoice.count({ where: { ...where, status: BillingInvoiceStatus.draft } }),
+      // Totais por moeda sobre o conjunto filtrado inteiro, nao so sobre a
+      // pagina atual — sao somados no banco por isso.
+      this.prisma.billingInvoice.groupBy({
+        by: ["currency"],
+        where,
+        _sum: { amount: true },
+      }),
     ]);
 
     return {
       items,
       total,
+      ...buildPageMeta(page, pageSize, total),
       summary: {
         total,
         paid,
         issued,
         overdue,
         draft,
+        totalsByCurrency: totalsRows.map((row) => ({
+          currency: row.currency,
+          total: row._sum.amount ?? new Prisma.Decimal(0),
+        })),
       },
     };
   }

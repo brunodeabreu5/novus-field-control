@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, DollarSign, FolderKanban, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { listBillingInvoices, listProvisioningProjects, listTenants } from '@/lib/api';
+import { getDashboardSummary } from '@/lib/api';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,49 +11,37 @@ import { Badge } from '@/components/ui/badge';
 export default function Dashboard() {
   const { format, convert } = useCurrency();
   const { t } = useTranslation();
-  const tenantsQuery = useQuery({ queryKey: ['dashboard', 'tenants'], queryFn: () => listTenants({ status: 'all' }) });
-  const projectsQuery = useQuery({ queryKey: ['dashboard', 'projects'], queryFn: () => listProvisioningProjects({ status: 'all' }) });
-  const invoicesQuery = useQuery({ queryKey: ['dashboard', 'invoices'], queryFn: () => listBillingInvoices({ status: 'all' }) });
-
-  // Memoizados para manter a referencia estavel entre renders: o fallback `[]`
-  // criava um array novo a cada render enquanto a query carrega, invalidando
-  // os useMemo abaixo sem necessidade.
-  const tenants = useMemo(() => tenantsQuery.data?.items ?? [], [tenantsQuery.data]);
-  const projects = useMemo(() => projectsQuery.data?.items ?? [], [projectsQuery.data]);
-  const invoices = useMemo(() => invoicesQuery.data?.items ?? [], [invoicesQuery.data]);
+  // Os totais vem agregados do servidor: as listagens sao paginadas, entao somar
+  // no cliente veria apenas uma fatia da base.
+  const summaryQuery = useQuery({ queryKey: ['dashboard', 'summary'], queryFn: getDashboardSummary });
+  const summary = summaryQuery.data;
 
   const metrics = useMemo(() => {
-    const activeTenants = tenants.filter((tenant) => tenant.status === 'active').length;
-    const blockedProjects = projects.filter((project) => project.status === 'blocked').length;
-    const overdueInvoices = invoices.filter((invoice) => invoice.status === 'overdue').length;
-    const monthlyRevenue = tenants.reduce((sum, tenant) => {
-      const profile = tenant.billingProfile;
-      if (!profile || profile.status === 'canceled') {
-        return sum;
-      }
-      return sum + convert(profile.monthlyAmount, profile.currency);
-    }, 0);
+    const monthlyRevenue = (summary?.metrics.monthlyRevenueByCurrency ?? []).reduce(
+      (sum, entry) => sum + convert(entry.total, entry.currency),
+      0,
+    );
 
-    return { activeTenants, blockedProjects, overdueInvoices, monthlyRevenue };
-  }, [convert, invoices, projects, tenants]);
+    return {
+      activeTenants: summary?.metrics.activeTenants ?? 0,
+      blockedProjects: summary?.metrics.blockedProjects ?? 0,
+      overdueInvoices: summary?.metrics.overdueInvoices ?? 0,
+      monthlyRevenue,
+    };
+  }, [convert, summary]);
 
   const chartData = useMemo(() => {
+    // O servidor devolve uma linha por mes e moeda; a conversao para a moeda
+    // exibida acontece aqui, onde a preferencia do usuario e conhecida.
     const grouped = new Map<string, number>();
-    invoices.forEach((invoice) => {
-      const date = new Date(invoice.issueDate);
-      const key = `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-      grouped.set(key, (grouped.get(key) || 0) + convert(invoice.amount, invoice.currency));
+    (summary?.issuedByMonth ?? []).forEach((entry) => {
+      grouped.set(entry.month, (grouped.get(entry.month) || 0) + convert(entry.total, entry.currency));
     });
-    return Array.from(grouped.entries())
-      .map(([month, value]) => ({ month, value }))
-      .slice(-6);
-  }, [convert, invoices]);
+    return Array.from(grouped.entries()).map(([month, value]) => ({ month, value }));
+  }, [convert, summary]);
 
-  const recentTenants = [...tenants].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
-  const priorityProjects = projects
-    .filter((project) => project.status !== 'completed')
-    .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
-    .slice(0, 5);
+  const recentTenants = summary?.recentTenants ?? [];
+  const priorityProjects = summary?.priorityProjects ?? [];
 
   const metricCards = [
     { label: t('dashboard.activeTenants'), value: metrics.activeTenants, icon: Users, color: 'text-blue-500' },

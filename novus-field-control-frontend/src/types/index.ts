@@ -25,6 +25,29 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+export interface PageMeta {
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+export interface CurrencyTotal {
+  currency: Currency;
+  total: number;
+}
+
+export interface TenantOption {
+  id: string;
+  slug: string;
+  displayName: string;
+  status: TenantStatus;
+}
+
+export interface TenantOptionsResponse {
+  items: TenantOption[];
+  total: number;
+}
+
 export interface TenantSummary {
   id: string;
   slug: string;
@@ -66,7 +89,7 @@ export interface Tenant {
   _count?: TenantCounts;
 }
 
-export interface TenantListResponse {
+export interface TenantListResponse extends PageMeta {
   items: Tenant[];
   total: number;
   summary: {
@@ -75,6 +98,7 @@ export interface TenantListResponse {
     inactive: number;
     suspended: number;
     provisioning: number;
+    revenueByCurrency: CurrencyTotal[];
   };
 }
 
@@ -114,7 +138,7 @@ export interface ProvisioningProjectPayload {
   targetGoLiveAt?: string;
 }
 
-export interface ProvisioningProjectListResponse {
+export interface ProvisioningProjectListResponse extends PageMeta {
   items: ProvisioningProject[];
   total: number;
   summary: {
@@ -153,7 +177,7 @@ export interface BillingInvoicePayload {
   description?: string;
 }
 
-export interface BillingInvoicesResponse {
+export interface BillingInvoicesResponse extends PageMeta {
   items: BillingInvoice[];
   total: number;
   summary: {
@@ -162,7 +186,27 @@ export interface BillingInvoicesResponse {
     issued: number;
     overdue: number;
     draft: number;
+    totalsByCurrency: CurrencyTotal[];
   };
+}
+
+export interface DashboardSummary {
+  metrics: {
+    activeTenants: number;
+    totalTenants: number;
+    blockedProjects: number;
+    overdueInvoices: number;
+    monthlyRevenueByCurrency: CurrencyTotal[];
+  };
+  issuedByMonth: { month: string; currency: Currency; total: number }[];
+  recentTenants: Pick<Tenant, 'id' | 'slug' | 'displayName' | 'status' | 'createdAt'>[];
+  priorityProjects: {
+    id: string;
+    name: string;
+    status: ProvisioningProjectStatus;
+    updatedAt: string;
+    tenant: { id: string; slug: string; displayName: string } | null;
+  }[];
 }
 
 export interface TenantBillingResponse {

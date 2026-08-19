@@ -1,8 +1,9 @@
 ﻿import { useId, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Plus } from 'lucide-react';
-import { createProvisioningProject, listProvisioningProjects, listTenants } from '@/lib/api';
+import { createProvisioningProject, listProvisioningProjects, listTenantOptions } from '@/lib/api';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { TablePagination } from '@/components/TablePagination';
 import type { ProvisioningProjectPayload, ProvisioningProjectStatus } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,22 +18,28 @@ export default function Projects() {
   const { t } = useTranslation();
   const titleId = useId();
   const descriptionId = useId();
-  const tenantsQuery = useQuery({ queryKey: ['project-tenants'], queryFn: () => listTenants({ status: 'all' }) });
+  const tenantsQuery = useQuery({ queryKey: ['tenant-options'], queryFn: listTenantOptions });
   const [search, setSearch] = useState('');
   const [tenantFilter, setTenantFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<ProvisioningProjectStatus | 'all'>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<ProvisioningProjectPayload>({ tenantId: '', name: '', description: '', ownerName: '', status: 'planned', startedAt: '', targetGoLiveAt: '' });
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const projectsQuery = useQuery({
-    queryKey: ['projects', search, tenantFilter, statusFilter],
+    queryKey: ['projects', search, tenantFilter, statusFilter, page],
     queryFn: () => listProvisioningProjects({
       search,
       tenantId: tenantFilter === 'all' ? undefined : tenantFilter,
       status: statusFilter,
+      page,
     }),
+    placeholderData: (previous) => previous,
   });
+
+  // Qualquer troca de filtro volta para a primeira pagina.
+  const resetPage = () => setPage(1);
 
   const tenants = tenantsQuery.data?.items ?? [];
   const projects = projectsQuery.data?.items ?? [];
@@ -75,14 +82,14 @@ export default function Projects() {
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input className="pl-10" placeholder={t('projects.search')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <Select value={tenantFilter} onValueChange={setTenantFilter}>
+            <Select value={tenantFilter} onValueChange={(value) => { setTenantFilter(value); resetPage(); }}>
               <SelectTrigger className="w-[220px]"><SelectValue placeholder={t('common.tenant')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('common.all')}</SelectItem>
                 {tenants.map((tenant) => <SelectItem key={tenant.id} value={tenant.id}>{tenant.displayName}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ProvisioningProjectStatus | 'all')}>
+            <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as ProvisioningProjectStatus | 'all'); resetPage(); }}>
               <SelectTrigger className="w-[180px]"><SelectValue placeholder={t('common.status')} /></SelectTrigger>
               <SelectContent>
                 {statusOptions.map((status) => <SelectItem key={status} value={status}>{status === 'all' ? t('common.all') : t(`status.${status}`)}</SelectItem>)}
@@ -124,6 +131,17 @@ export default function Projects() {
             </TableBody>
           </Table>
           {projectsQuery.isLoading ? <div className="p-6 text-sm text-muted-foreground">{t('projects.loading')}</div> : null}
+          {projectsQuery.data ? (
+            <div className="border-t border-border p-4">
+              <TablePagination
+                page={projectsQuery.data.page}
+                pageSize={projectsQuery.data.pageSize}
+                pageCount={projectsQuery.data.pageCount}
+                total={projectsQuery.data.total}
+                onPageChange={setPage}
+              />
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

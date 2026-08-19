@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CreateTenantDto } from "./dto/create-tenant.dto";
 import { UpdateTenantDto } from "./dto/update-tenant.dto";
 import { ListTenantsQueryDto } from "./dto/list-tenants-query.dto";
+import { buildPageMeta, resolvePagination } from "../../common/dto/pagination-query.dto";
 
 @Injectable()
 export class TenantsService {
@@ -54,9 +55,13 @@ export class TenantsService {
       ];
     }
 
-    const [items, total, active, inactive, suspended, provisioning] = await Promise.all([
+    const { page, pageSize, skip, take } = resolvePagination(query);
+
+    const [items, total, active, inactive, suspended, provisioning, revenueRows] = await Promise.all([
       this.prisma.tenant.findMany({
         where,
+        skip,
+        take,
         include: {
           billingProfile: true,
           _count: {
@@ -73,19 +78,45 @@ export class TenantsService {
       this.prisma.tenant.count({ where: { status: TenantStatus.inactive } }),
       this.prisma.tenant.count({ where: { status: TenantStatus.suspended } }),
       this.prisma.tenant.count({ where: { status: TenantStatus.provisioning } }),
+      // Receita recorrente somada no banco: a pagina traz so uma fatia dos
+      // tenants, entao o total nao pode sair de `items`.
+      this.prisma.tenantBillingProfile.groupBy({
+        by: ["currency"],
+        where: { status: { not: BillingProfileStatus.canceled } },
+        _sum: { monthlyAmount: true },
+      }),
     ]);
 
     return {
       items,
       total,
+      ...buildPageMeta(page, pageSize, total),
       summary: {
         total: active + inactive + suspended + provisioning,
         active,
         inactive,
         suspended,
         provisioning,
+        revenueByCurrency: revenueRows.map((row) => ({
+          currency: row.currency,
+          total: row._sum.monthlyAmount ?? new Prisma.Decimal(0),
+        })),
       },
     };
+  }
+
+  /**
+   * Lista enxuta para popular selects. As telas precisam de todos os tenants no
+   * dropdown, o que a listagem paginada nao entrega — aqui so trafegam os campos
+   * de identificacao, entao o payload fica pequeno mesmo com a base cheia.
+   */
+  async options() {
+    const items = await this.prisma.tenant.findMany({
+      orderBy: [{ displayName: "asc" }],
+      select: { id: true, slug: true, displayName: true, status: true },
+    });
+
+    return { items, total: items.length };
   }
 
   async create(dto: CreateTenantDto) {

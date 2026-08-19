@@ -7,6 +7,7 @@ import type {
   BillingInvoicePayload,
   BillingInvoicesResponse,
   BillingInvoiceStatus,
+  DashboardSummary,
   ProvisioningProject,
   ProvisioningProjectListResponse,
   ProvisioningProjectPayload,
@@ -15,6 +16,7 @@ import type {
   TenantBillingProfilePayload,
   TenantBillingResponse,
   TenantListResponse,
+  TenantOptionsResponse,
   TenantPayload,
   TenantStatus,
 } from "@/types";
@@ -140,7 +142,21 @@ export async function getCurrentUser() {
   return user;
 }
 
-export async function listTenants(filters: { search?: string; status?: TenantStatus | "all" }) {
+interface PageParams {
+  page?: number;
+  pageSize?: number;
+}
+
+function appendPageParams(params: URLSearchParams, filters: PageParams) {
+  if (filters.page && filters.page > 1) {
+    params.set("page", String(filters.page));
+  }
+  if (filters.pageSize) {
+    params.set("pageSize", String(filters.pageSize));
+  }
+}
+
+export async function listTenants(filters: { search?: string; status?: TenantStatus | "all" } & PageParams) {
   const params = new URLSearchParams();
   if (filters.search?.trim()) {
     params.set("search", filters.search.trim());
@@ -148,8 +164,18 @@ export async function listTenants(filters: { search?: string; status?: TenantSta
   if (filters.status && filters.status !== "all") {
     params.set("status", filters.status);
   }
+  appendPageParams(params, filters);
   const query = params.toString();
   return request<TenantListResponse>(`/tenants${query ? `?${query}` : ""}`);
+}
+
+/** Lista enxuta e completa, para popular selects de tenant. */
+export function listTenantOptions() {
+  return request<TenantOptionsResponse>("/tenants/options");
+}
+
+export function getDashboardSummary() {
+  return request<DashboardSummary>("/dashboard/summary");
 }
 
 export function getTenant(id: string) {
@@ -180,7 +206,7 @@ export async function listProvisioningProjects(filters: {
   search?: string;
   status?: ProvisioningProjectStatus | "all";
   tenantId?: string;
-}) {
+} & PageParams) {
   const params = new URLSearchParams();
   if (filters.search?.trim()) {
     params.set("search", filters.search.trim());
@@ -191,6 +217,7 @@ export async function listProvisioningProjects(filters: {
   if (filters.tenantId?.trim()) {
     params.set("tenantId", filters.tenantId.trim());
   }
+  appendPageParams(params, filters);
   const query = params.toString();
   return request<ProvisioningProjectListResponse>(`/provisioning-projects${query ? `?${query}` : ""}`);
 }
@@ -217,7 +244,7 @@ export async function listBillingInvoices(filters: {
   search?: string;
   status?: BillingInvoiceStatus | "all";
   tenantId?: string;
-}) {
+} & PageParams) {
   const params = new URLSearchParams();
   if (filters.search?.trim()) {
     params.set("search", filters.search.trim());
@@ -228,6 +255,7 @@ export async function listBillingInvoices(filters: {
   if (filters.tenantId?.trim()) {
     params.set("tenantId", filters.tenantId.trim());
   }
+  appendPageParams(params, filters);
   const query = params.toString();
   return request<BillingInvoicesResponse>(`/billing/invoices${query ? `?${query}` : ""}`);
 }

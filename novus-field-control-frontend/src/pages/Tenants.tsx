@@ -5,6 +5,7 @@ import { Plus, Search, Eye, Pencil } from 'lucide-react';
 import { listTenants } from '@/lib/api';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { TenantFormDialog } from '@/components/TenantFormDialog';
+import { TablePagination } from '@/components/TablePagination';
 import type { TenantStatus } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,13 +21,26 @@ export default function Tenants() {
   const [statusFilter, setStatusFilter] = useState<TenantStatus | 'all'>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTenantId, setEditingTenantId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const tenantsQuery = useQuery({
-    queryKey: ['tenants', search, statusFilter],
-    queryFn: () => listTenants({ search, status: statusFilter }),
+    queryKey: ['tenants', search, statusFilter, page],
+    queryFn: () => listTenants({ search, status: statusFilter, page }),
+    placeholderData: (previous) => previous,
   });
 
   const tenants = tenantsQuery.data?.items ?? [];
+
+  // Trocar filtro com a paginacao numa pagina alta deixaria a lista vazia.
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const handleStatusFilter = (value: TenantStatus | 'all') => {
+    setStatusFilter(value);
+    setPage(1);
+  };
 
   const openCreateModal = () => {
     setEditingTenantId(null);
@@ -67,10 +81,10 @@ export default function Tenants() {
                   className="pl-10"
                   placeholder={t('tenants.search')}
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => handleSearch(e.target.value)}
                 />
               </div>
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as TenantStatus | 'all')}>
+              <Select value={statusFilter} onValueChange={(v) => handleStatusFilter(v as TenantStatus | 'all')}>
                 <SelectTrigger className="w-[180px]"><SelectValue placeholder={t('common.status')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t('common.all')}</SelectItem>
@@ -130,6 +144,17 @@ export default function Tenants() {
             </Table>
             {tenantsQuery.isLoading ? <div className="p-6 text-sm text-muted-foreground">{t('tenants.loading')}</div> : null}
             {tenantsQuery.error instanceof Error ? <div className="p-6 text-sm text-destructive">{tenantsQuery.error.message}</div> : null}
+            {tenantsQuery.data ? (
+              <div className="border-t border-border p-4">
+                <TablePagination
+                  page={tenantsQuery.data.page}
+                  pageSize={tenantsQuery.data.pageSize}
+                  pageCount={tenantsQuery.data.pageCount}
+                  total={tenantsQuery.data.total}
+                  onPageChange={setPage}
+                />
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>

@@ -16,7 +16,7 @@ export const languageLabels: Record<Language, string> = {
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | null>(null);
@@ -48,6 +48,17 @@ function lookup(dictionary: Record<string, unknown>, key: string): string | null
   return typeof value === 'string' ? value : null;
 }
 
+/** Substitui marcadores {nome} pelos valores informados. */
+function interpolate(template: string, params?: Record<string, string | number>) {
+  if (!params) {
+    return template;
+  }
+
+  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in params ? String(params[name]) : match,
+  );
+}
+
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>(readInitialLanguage);
 
@@ -61,7 +72,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<LanguageContextType>(() => ({
     language,
     setLanguage,
-    t: (key: string) => lookup(dictionaries[language], key) ?? lookup(dictionaries.pt, key) ?? key,
+    t: (key: string, params?: Record<string, string | number>) =>
+      interpolate(lookup(dictionaries[language], key) ?? lookup(dictionaries.pt, key) ?? key, params),
   }), [language]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;

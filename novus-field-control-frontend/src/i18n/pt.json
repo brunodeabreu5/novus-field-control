@@ -206,5 +206,11 @@
   "notFound": {
     "title": "Página não encontrada",
     "back": "Voltar para o início"
+  },
+  "pagination": {
+    "previous": "Anterior",
+    "next": "Próxima",
+    "showing": "Mostrando {from}–{to} de {total}",
+    "page": "Página {page} de {pageCount}"
   }
 }

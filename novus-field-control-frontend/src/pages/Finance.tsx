@@ -1,8 +1,9 @@
 ﻿import { useEffect, useId, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createBillingInvoice, getTenantBilling, listBillingInvoices, listTenants, updateTenantBillingProfile } from '@/lib/api';
+import { createBillingInvoice, getTenantBilling, listBillingInvoices, listTenantOptions, updateTenantBillingProfile } from '@/lib/api';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { TablePagination } from '@/components/TablePagination';
 import { formatCurrencyValue, getLanguageLocale } from '@/lib/locale';
 import type { BillingInvoicePayload, BillingInvoiceStatus, BillingPlan, BillingProfileStatus, Currency } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +19,7 @@ export default function Finance() {
   const { format } = useCurrency();
   const { t, language } = useTranslation();
   const locale = getLanguageLocale(language);
-  const tenantsQuery = useQuery({ queryKey: ['billing-tenants'], queryFn: () => listTenants({ status: 'all' }) });
+  const tenantsQuery = useQuery({ queryKey: ['tenant-options'], queryFn: listTenantOptions });
   const [statusFilter, setStatusFilter] = useState<BillingInvoiceStatus | 'all'>('all');
   const [tenantId, setTenantId] = useState<string>('');
   const [invoiceOpen, setInvoiceOpen] = useState(false);
@@ -30,9 +31,12 @@ export default function Finance() {
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
+
   const invoicesQuery = useQuery({
-    queryKey: ['billing-invoices', tenantId, statusFilter],
-    queryFn: () => listBillingInvoices({ tenantId: tenantId || undefined, status: statusFilter }),
+    queryKey: ['billing-invoices', tenantId, statusFilter, page],
+    queryFn: () => listBillingInvoices({ tenantId: tenantId || undefined, status: statusFilter, page }),
+    placeholderData: (previous) => previous,
   });
 
   const billingQuery = useQuery({
@@ -80,13 +84,15 @@ export default function Finance() {
     }
   }, [billingQuery.data]);
 
+  // Agregado no servidor sobre o conjunto filtrado inteiro. Somar `items` daria
+  // apenas o total da pagina exibida.
   const totalsByMoney = useMemo(() => {
     const totals: Record<Currency, number> = { PYG: 0, BRL: 0, USD: 0 };
-    (invoicesQuery.data?.items ?? []).forEach((invoice) => {
-      totals[invoice.currency] += invoice.amount;
+    (invoicesQuery.data?.summary.totalsByCurrency ?? []).forEach((entry) => {
+      totals[entry.currency] = entry.total;
     });
     return totals;
-  }, [invoicesQuery.data?.items]);
+  }, [invoicesQuery.data?.summary.totalsByCurrency]);
 
   const invoiceMutation = useMutation({
     mutationFn: () => createBillingInvoice({ ...invoiceForm, tenantId: tenantId || invoiceForm.tenantId, description: invoiceForm.description || undefined }),
@@ -189,13 +195,13 @@ export default function Finance() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <CardTitle>{t('finance.sectionTitle')}</CardTitle>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Select value={tenantId} onValueChange={setTenantId}>
+              <Select value={tenantId} onValueChange={(value) => { setTenantId(value); setPage(1); }}>
                 <SelectTrigger className="w-[240px]"><SelectValue placeholder={t('common.tenant')} /></SelectTrigger>
                 <SelectContent>
                   {tenants.map((tenant) => <SelectItem key={tenant.id} value={tenant.id}>{tenant.displayName}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as BillingInvoiceStatus | 'all')}>
+              <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as BillingInvoiceStatus | 'all'); setPage(1); }}>
                 <SelectTrigger className="w-[180px]"><SelectValue placeholder={t('common.status')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t('common.all')}</SelectItem>
@@ -242,6 +248,16 @@ export default function Finance() {
               {!invoicesQuery.isLoading && !(invoicesQuery.data?.items.length) ? <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{t('finance.noResults')}</TableCell></TableRow> : null}
             </TableBody>
           </Table>
+
+          {invoicesQuery.data ? (
+            <TablePagination
+              page={invoicesQuery.data.page}
+              pageSize={invoicesQuery.data.pageSize}
+              pageCount={invoicesQuery.data.pageCount}
+              total={invoicesQuery.data.total}
+              onPageChange={setPage}
+            />
+          ) : null}
         </CardContent>
       </Card>
 

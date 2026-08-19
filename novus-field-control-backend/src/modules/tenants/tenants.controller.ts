@@ -21,6 +21,12 @@ export class TenantsController {
     return this.tenantsService.list(query);
   }
 
+  // Precisa vir antes de @Get(":id"), senao "options" seria capturado como id.
+  @Get("options")
+  options() {
+    return this.tenantsService.options();
+  }
+
   @Post()
   create(@Body() dto: CreateTenantDto) {
     return this.tenantsService.create(dto);
