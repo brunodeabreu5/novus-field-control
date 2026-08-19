@@ -3,12 +3,20 @@ import { AdminRole } from "@prisma/client";
 import { JwtService } from "@nestjs/jwt";
 import bcrypt from "bcrypt";
 import { randomBytes } from "node:crypto";
-import { Request } from "express";
+import { CookieOptions, Request, Response } from "express";
 import { PrismaService } from "../../prisma/prisma.service";
 import { LoginDto } from "./dto/login.dto";
-import { RefreshSessionDto } from "./dto/refresh-session.dto";
-import { LogoutDto } from "./dto/logout.dto";
 import { AuthenticatedUser } from "./interfaces/authenticated-user.interface";
+import { env } from "../../config/env";
+
+/**
+ * O refresh token nunca chega ao JavaScript do navegador: sai em cookie
+ * httpOnly, restrito as rotas de autenticacao. E o que impede um XSS de roubar
+ * uma sessao de 30 dias — o access token, que fica em memoria, some ao recarregar.
+ */
+export const REFRESH_COOKIE = "nfc_refresh";
+const REFRESH_COOKIE_PATH = "/api/auth";
+const REFRESH_TTL_DAYS = 30;
 
 @Injectable()
 export class AuthService {
@@ -17,7 +25,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async login(dto: LoginDto, request: Request) {
+  async login(dto: LoginDto, request: Request, response: Response) {
     const email = dto.email.trim().toLowerCase();
     const admin = await this.prisma.controlAdmin.findUnique({
       where: { email },
@@ -64,20 +72,28 @@ export class AuthService {
       },
       refreshToken,
       session.id,
+      response,
     );
   }
 
-  async refresh(dto: RefreshSessionDto, request: Request) {
+  async refresh(request: Request, response: Response) {
+    const presented = this.readRefreshCookie(request);
+    if (!presented) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
     const session = await this.prisma.controlSession.findUnique({
-      where: { refreshToken: dto.refreshToken },
+      where: { refreshToken: presented },
       include: { admin: true },
     });
 
     if (!session || session.revokedAt || session.expiresAt <= new Date()) {
+      this.clearRefreshCookie(response);
       throw new UnauthorizedException("Invalid refresh token");
     }
 
     if (!session.admin.isActive) {
+      this.clearRefreshCookie(response);
       throw new UnauthorizedException("User is inactive");
     }
 
@@ -106,33 +122,28 @@ export class AuthService {
       },
       nextRefreshToken,
       session.id,
+      response,
     );
   }
 
-  async logout(user: AuthenticatedUser, dto: LogoutDto) {
-    if (dto.refreshToken) {
-      await this.prisma.controlSession.updateMany({
-        where: {
-          adminId: user.sub,
-          refreshToken: dto.refreshToken,
-          revokedAt: null,
-        },
-        data: {
-          revokedAt: new Date(),
-        },
-      });
-    } else {
-      await this.prisma.controlSession.updateMany({
-        where: {
-          adminId: user.sub,
-          revokedAt: null,
-        },
-        data: {
-          revokedAt: new Date(),
-        },
-      });
-    }
+  async logout(user: AuthenticatedUser, request: Request, response: Response) {
+    // Revoga a sessao do proprio token em uso; o cookie e apenas o transporte.
+    await this.prisma.controlSession.updateMany({
+      where: { id: user.sid, adminId: user.sub, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
 
+    this.clearRefreshCookie(response);
+    return { success: true };
+  }
+
+  async logoutAll(user: AuthenticatedUser, response: Response) {
+    await this.prisma.controlSession.updateMany({
+      where: { adminId: user.sub, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    this.clearRefreshCookie(response);
     return { success: true };
   }
 
@@ -161,6 +172,7 @@ export class AuthService {
     },
     refreshToken: string,
     sessionId: string,
+    response: Response,
   ) {
     const accessToken = this.jwtService.sign({
       sub: admin.id,
@@ -169,11 +181,40 @@ export class AuthService {
       sid: sessionId,
     } satisfies AuthenticatedUser);
 
+    this.setRefreshCookie(response, refreshToken);
+
+    // O refresh token nao aparece no corpo de proposito: se aparecesse, o
+    // cliente poderia guarda-lo e o cookie httpOnly perderia o proposito.
     return {
       accessToken,
-      refreshToken,
       user: this.serializeAdmin(admin),
     };
+  }
+
+  private cookieOptions(): CookieOptions {
+    return {
+      httpOnly: true,
+      secure: env.cookie.secure,
+      sameSite: env.cookie.sameSite,
+      domain: env.cookie.domain,
+      path: REFRESH_COOKIE_PATH,
+    };
+  }
+
+  private setRefreshCookie(response: Response, refreshToken: string) {
+    response.cookie(REFRESH_COOKIE, refreshToken, {
+      ...this.cookieOptions(),
+      maxAge: REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000,
+    });
+  }
+
+  private clearRefreshCookie(response: Response) {
+    response.clearCookie(REFRESH_COOKIE, this.cookieOptions());
+  }
+
+  private readRefreshCookie(request: Request) {
+    const cookies = (request as Request & { cookies?: Record<string, string> }).cookies;
+    return cookies?.[REFRESH_COOKIE] || null;
   }
 
   private serializeAdmin(admin: {
@@ -204,7 +245,7 @@ export class AuthService {
 
   private getRefreshTokenExpiry() {
     const result = new Date();
-    result.setDate(result.getDate() + 30);
+    result.setDate(result.getDate() + REFRESH_TTL_DAYS);
     return result;
   }
 

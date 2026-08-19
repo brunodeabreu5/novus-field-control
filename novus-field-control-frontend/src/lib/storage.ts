@@ -1,30 +1,21 @@
-﻿import type { AuthResponse } from "@/types";
+import type { AuthSession } from "@/types";
 
-const STORAGE_KEY = "novus_field_control_auth";
+/**
+ * A sessao vive apenas em memoria. O access token nao e persistido de proposito:
+ * em localStorage ele fica exposto a qualquer XSS, e sobreviveria ao fechamento
+ * da aba. Quem sustenta a sessao entre recarregamentos e o cookie httpOnly do
+ * refresh token, que o JavaScript nao consegue ler.
+ */
+let session: AuthSession | null = null;
 
-export function readAuthState(): AuthResponse | null {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as AuthResponse;
-  } catch {
-    localStorage.removeItem(STORAGE_KEY);
-    return null;
-  }
+export function readAuthState(): AuthSession | null {
+  return session;
 }
 
-export function writeAuthState(value: AuthResponse | null) {
-  if (!value) {
-    localStorage.removeItem(STORAGE_KEY);
-    return;
-  }
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+export function writeAuthState(value: AuthSession | null) {
+  session = value;
 }
 
 export function clearAuthState() {
-  localStorage.removeItem(STORAGE_KEY);
+  session = null;
 }

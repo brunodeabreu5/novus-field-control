@@ -19,9 +19,12 @@ export interface AuthUser {
   updatedAt: string;
 }
 
-export interface AuthResponse {
+/**
+ * O refresh token nao aparece aqui: ele viaja em cookie httpOnly e o JavaScript
+ * nao tem — nem deve ter — acesso a ele.
+ */
+export interface AuthSession {
   accessToken: string;
-  refreshToken: string;
   user: AuthUser;
 }
 

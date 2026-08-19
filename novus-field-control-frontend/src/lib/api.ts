@@ -1,8 +1,7 @@
 import { CONTROL_API_URL } from "./config";
 import { clearAuthState, readAuthState, writeAuthState } from "./storage";
 import type {
-  AuthResponse,
-  AuthUser,
+  AuthSession,
   BillingInvoice,
   BillingInvoicePayload,
   BillingInvoicesResponse,
@@ -24,11 +23,11 @@ import type {
 // Requisicoes concorrentes que recebem 401 ao mesmo tempo precisam compartilhar
 // uma unica renovacao: o backend rotaciona o refresh token, entao a segunda
 // chamada usaria um token ja invalidado e derrubaria a sessao do usuario.
-let pendingRefresh: Promise<AuthResponse | null> | null = null;
+let pendingRefresh: Promise<AuthSession | null> | null = null;
 
-function refreshOnce(refreshToken: string): Promise<AuthResponse | null> {
+export function refreshOnce(): Promise<AuthSession | null> {
   if (!pendingRefresh) {
-    pendingRefresh = refreshSession(refreshToken)
+    pendingRefresh = refreshSession()
       .catch(() => null)
       .finally(() => {
         pendingRefresh = null;
@@ -53,6 +52,9 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   const response = await fetch(`${CONTROL_API_URL}${path}`, {
     ...init,
     headers,
+    // Necessario para o cookie httpOnly do refresh token acompanhar a
+    // requisicao — inclusive entre origens distintas.
+    credentials: "include",
   });
 
   if (response.status === 401 && retry && path !== "/auth/refresh") {
@@ -63,11 +65,11 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
       return request<T>(path, init, false);
     }
 
-    if (current?.refreshToken) {
-      const refreshed = await refreshOnce(current.refreshToken);
-      if (refreshed) {
-        return request<T>(path, init, false);
-      }
+    // Nao ha token para conferir: o cookie httpOnly e quem diz se ainda existe
+    // sessao, e so o servidor consegue le-lo.
+    const refreshed = await refreshOnce();
+    if (refreshed) {
+      return request<T>(path, init, false);
     }
 
     clearAuthState();
@@ -92,7 +94,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 }
 
 export async function login(email: string, password: string) {
-  const data = await request<AuthResponse>("/auth/login", {
+  const data = await request<AuthSession>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
@@ -100,46 +102,20 @@ export async function login(email: string, password: string) {
   return data;
 }
 
-export async function refreshSession(refreshToken: string) {
-  const data = await request<AuthResponse>(
-    "/auth/refresh",
-    {
-      method: "POST",
-      body: JSON.stringify({ refreshToken }),
-    },
-    false,
-  );
+/** O refresh token vai no cookie; nada precisa ser enviado no corpo. */
+export async function refreshSession() {
+  const data = await request<AuthSession>("/auth/refresh", { method: "POST" }, false);
   writeAuthState(data);
   return data;
 }
 
 export async function logout() {
-  const auth = readAuthState();
-  if (auth?.refreshToken) {
-    await request(
-      "/auth/logout",
-      {
-        method: "POST",
-        body: JSON.stringify({ refreshToken: auth.refreshToken }),
-      },
-      false,
-    ).catch(() => undefined);
+  if (readAuthState()) {
+    // O servidor revoga a sessao e limpa o cookie.
+    await request("/auth/logout", { method: "POST" }, false).catch(() => undefined);
   }
 
   writeAuthState(null);
-}
-
-export function getStoredUser(): AuthUser | null {
-  return readAuthState()?.user ?? null;
-}
-
-export async function getCurrentUser() {
-  const user = await request<AuthUser>("/auth/me");
-  const state = readAuthState();
-  if (state) {
-    writeAuthState({ ...state, user });
-  }
-  return user;
 }
 
 interface PageParams {
