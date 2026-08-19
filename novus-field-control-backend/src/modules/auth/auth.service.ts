@@ -40,7 +40,7 @@ export class AuthService {
     });
 
     const refreshToken = this.generateRefreshToken();
-    await this.prisma.controlSession.create({
+    const session = await this.prisma.controlSession.create({
       data: {
         adminId: admin.id,
         refreshToken,
@@ -48,6 +48,7 @@ export class AuthService {
         userAgent: this.getUserAgent(request),
         ipAddress: this.getIpAddress(request),
       },
+      select: { id: true },
     });
 
     return this.buildAuthResponse(
@@ -62,6 +63,7 @@ export class AuthService {
         updatedAt: admin.updatedAt,
       },
       refreshToken,
+      session.id,
     );
   }
 
@@ -103,6 +105,7 @@ export class AuthService {
         updatedAt: session.admin.updatedAt,
       },
       nextRefreshToken,
+      session.id,
     );
   }
 
@@ -157,11 +160,13 @@ export class AuthService {
       updatedAt: Date;
     },
     refreshToken: string,
+    sessionId: string,
   ) {
     const accessToken = this.jwtService.sign({
       sub: admin.id,
       email: admin.email,
       role: admin.role,
+      sid: sessionId,
     } satisfies AuthenticatedUser);
 
     return {

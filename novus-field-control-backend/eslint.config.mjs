@@ -22,7 +22,7 @@ export default [
 
   // Codigo da aplicacao: linting com informacao de tipos.
   {
-    files: ["src/**/*.ts", "prisma/**/*.ts"],
+    files: ["src/**/*.ts", "prisma/**/*.ts", "test/**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
