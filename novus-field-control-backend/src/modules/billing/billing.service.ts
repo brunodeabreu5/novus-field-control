@@ -90,14 +90,18 @@ export class BillingService {
   async updateInvoice(id: string, dto: UpdateBillingInvoiceDto) {
     await this.ensureInvoice(id);
 
+    // Trocar o tenant precisa levar junto o billingProfileId: sem isso a fatura
+    // continuaria vinculada ao perfil de cobranca do tenant anterior.
+    let billingProfileId: string | undefined;
     if (dto.tenantId) {
-      await this.ensureTenantProfile(dto.tenantId);
+      const profile = await this.ensureTenantProfile(dto.tenantId);
+      billingProfileId = profile.id;
     }
 
     return this.prisma.billingInvoice.update({
       where: { id },
       data: {
-        ...(dto.tenantId ? { tenantId: dto.tenantId } : {}),
+        ...(dto.tenantId ? { tenantId: dto.tenantId, billingProfileId } : {}),
         ...(dto.number ? { number: dto.number.trim().toUpperCase() } : {}),
         ...(dto.amount !== undefined ? { amount: dto.amount } : {}),
         ...(dto.currency ? { currency: dto.currency } : {}),
