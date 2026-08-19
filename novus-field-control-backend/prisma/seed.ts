@@ -1,8 +1,16 @@
 import "dotenv/config";
 import bcrypt from "bcrypt";
 import { PrismaClient, AdminRole } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error("Missing required environment variable: DATABASE_URL");
+}
+
+const adapter = new PrismaPg({ connectionString });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const email = (process.env.SEED_ADMIN_EMAIL || "admin@novusfield.com").trim().toLowerCase();
